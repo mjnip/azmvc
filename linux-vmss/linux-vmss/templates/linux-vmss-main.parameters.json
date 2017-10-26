@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    "vmssName": {
+      "value": "linuxvmssdiag"
+    },
+    "instanceCount": {
+      "value": 2
+    },
+    "lbOrNolb": {
+      "value": "nolb"
+    },
+    "adminUsername": {
+      "value": "mjnip"
+    },
+    "scriptFile": {
+      "value": "install.sh"
+    },
+    "adminPassword": {
+      "value": "1qaz1qaz!QAZ"
+    },
+    "subnetname": {
+      "value": "default"
+    },
+    "virtualnetworkName": {
+      "value": "markit-vnet"
+    },
+    "virtualnetworkNameRGName": {
+      "value": "MarkIT-Network"
+    },
+    "workspaceName": {
+      "value": "nipopinsights"
+    },
+    "oms-rg": {
+      "value": "OI-Default-East-US"
+    }
+  }
+}

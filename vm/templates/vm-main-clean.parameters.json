@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    "vmName": {
+      "value": ""
+    },
+    "computerNamePrefix": {
+      "value": ""
+    },
+    "instanceCount": {
+      "value": 3
+    },
+    "diskType": {
+      "value": "Premium_LRS"
+    },
+    "vmSize": {
+      "value": "Standard_DS1_v2"
+    },
+    "lbOrNolb": {
+      "value": "lb"
+    },
+    "lbPort": {
+      "value": 443
+    },
+    "lbBePort": {
+      "value": 80
+    },
+    "adminUsername": {
+      "value": ""
+    },
+    "scriptFile": {
+      "value": "install.sh"
+    },
+    "scriptCommandToExecute": {
+      "value": "./install.sh"
+    },
+    "adminPassword": {
+      "value": ""
+    },
+    "subnetname": {
+      "value": ""
+    },
+    "virtualnetworkName": {
+      "value": ""
+    },
+    "virtualnetworkNameRGName": {
+      "value": ""
+    },
+    "osType": {
+      "value": "Linux"
+    },
+    "managedImageId": {
+      "value": ""
+    },
+    "datadiskCount": {
+      "value": 2
+    },
+    "datadiskCapacity": {
+      "value": 128
+    },
+    "datadiskCaching": {
+      "value": "None"
+    }
+  }
+}

@@ -1,0 +1,214 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "_artifactsLocation": {
+      "type": "string",
+      "metadata": {
+        "_artifactsLocation": "url of storage path created in deploy ps"
+      }
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "metadata": {
+        "_artifactsLocationSasToken": "sas url created in deploy ps"
+      }
+    },
+    "keyVaultName": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "KeyVault name"
+      }
+    },
+    "accessPolicies": {
+      "type": "array",
+      "defaultValue": "{}",
+      "metadata": {
+        "description": "Access policies object {\"tenantId\":\"\",\"objectId\":\"\",\"permissions\":{\"keys\":[\"\"],\"secrets\":[\"\"]}}"
+      }
+    },
+    "logsRetentionInDays": {
+      "type": "int",
+      "defaultValue": 0,
+      "minValue": 0,
+      "maxValue": 365,
+      "metadata": {
+        "description": "Specifies the number of days that logs are gonna be kept. If you do not want to apply any retention policy and retain data forever, set value to 0."
+      }
+    },
+    "enableVaultForDeployment": {
+      "type": "bool",
+      "defaultValue": false,
+      "allowedValues": [
+        true,
+        false
+      ],
+      "metadata": {
+        "description": "Specifies if the vault is enabled for deployment by script or compute (VM, Service Fabric, ...)"
+      }
+    },
+    "enableVaultForTemplateDeployment": {
+      "type": "bool",
+      "defaultValue": false,
+      "allowedValues": [
+        true,
+        false
+      ],
+      "metadata": {
+        "description": "Specifies if the vault is enabled for a template deployment"
+      }
+    },
+    "enableVaultForDiskEncryption": {
+      "type": "bool",
+      "defaultValue": false,
+      "allowedValues": [
+        true,
+        false
+      ],
+      "metadata": {
+        "description": "Specifies if the azure platform has access to the vault for enabling disk encryption scenarios."
+      }
+    },
+    "vaultSku": {
+      "type": "string",
+      "defaultValue": "Standard",
+      "allowedValues": [
+        "Standard",
+        "Premium"
+      ],
+      "metadata": {
+        "description": "Specifies the SKU for the vault"
+      }
+    },
+    "vaultSoftDelete": {
+      "type": "string",
+      "defaultValue": "disabled",
+      "allowedValues": [
+        "enabled",
+        "disabled"
+      ],
+      "metadata": {
+        "description": "The vault's create mode to indicate whether the vault need to be recovered or not."
+      }
+    },
+    "protectWithLocks": {
+      "type": "string",
+      "allowedValues": [
+        "enabled",
+        "disabled"
+      ],
+      "defaultValue": "disabled"
+    }
+  },
+  "variables": {
+    "uniqueString": "[substring(uniqueString(subscription().id, resourceGroup().id), 0, 5)]",
+    "kvName": "[concat(parameters('keyVaultName'), variables('uniqueString'))]",
+    "diagnosticStorageAccountName": "[toLower(concat(parameters('keyVaultName'), variables('uniqueString')))]",
+    "keyVaultApiVersion": "2016-10-01",
+    "AuthorizationApiVersion": "2016-09-01",
+    "DiagnosticApiVersion": "2016-09-01",
+    "storageApiVersion": "2016-12-01",
+    "keyVaultProperties_enabled": {
+      "enabledForDeployment": "[parameters('enableVaultForDeployment')]",
+      "enabledForTemplateDeployment": "[parameters('enableVaultForTemplateDeployment')]",
+      "enabledForDiskEncryption": "[parameters('enableVaultForDiskEncryption')]",
+      "tenantId": "[subscription().tenantId]",
+      "accessPolicies": "[parameters('AccessPolicies')]",
+      "sku": {
+        "name": "[parameters('vaultSku')]",
+        "family": "A"
+      },
+      "enableSoftDelete": true
+    },
+    "keyVaultProperties_disabled": {
+      "enabledForDeployment": "[parameters('enableVaultForDeployment')]",
+      "enabledForTemplateDeployment": "[parameters('enableVaultForTemplateDeployment')]",
+      "enabledForDiskEncryption": "[parameters('enableVaultForDiskEncryption')]",
+      "tenantId": "[subscription().tenantId]",
+      "accessPolicies": "[parameters('AccessPolicies')]",
+      "sku": {
+        "name": "[parameters('vaultSku')]",
+        "family": "A"
+      }
+    }
+
+  },
+  "resources": [
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "name": "[variables('kvName')]",
+      "apiVersion": "[variables('keyVaultApiVersion')]",
+      "Location": "[resourceGroup().location]",
+      "tags": {
+
+      },
+      "properties": "[variables(concat('keyVaultProperties_', parameters('vaultSoftDelete')))]"
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "name": "[variables('diagnosticStorageAccountName')]",
+      "apiVersion": "[variables('storageApiVersion')]",
+      "Location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "Storage",
+      "tags": {
+      },
+      "properties": {}
+    },
+
+    {
+      "type": "Microsoft.KeyVault/vaults/providers/diagnosticsettings",
+      "name": "[concat(variables('kvName'), '/Microsoft.Insights/service')]",
+      "apiVersion": "[variables('DiagnosticApiVersion')]",
+      "Location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.KeyVault/vaults/', variables('kvName'))]",
+        "[concat('Microsoft.Storage/storageAccounts/', variables('diagnosticStorageAccountName'))]"
+      ],
+      "properties": {
+        "storageAccountId": "[resourceId('Microsoft.Storage/storageAccounts', variables('diagnosticStorageAccountName'))]",
+        "logs": [
+          {
+            "category": "AuditEvent",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": true,
+              "days": "[parameters('logsRetentionInDays')]"
+            }
+          }
+        ]
+      }
+    },
+
+    {
+      "condition": "[equals(parameters('protectWithLocks'), 'enabled')]",
+      "type": "Microsoft.KeyVault/vaults/providers/locks",
+      "name": "[concat(variables('kvName'), '/Microsoft.Authorization/keyVaultDoNotDelete')]",
+      "apiVersion": "[variables('AuthorizationApiVersion')]",
+      "dependsOn": [
+        "[concat('Microsoft.KeyVault/vaults/', variables('kvName'))]"
+      ],
+      "properties": {
+        "level": "CannotDelete"
+      }
+    },
+    {
+      "condition": "[equals(parameters('protectWithLocks'), 'enabled')]",
+      "type": "Microsoft.Storage/storageAccounts/providers/locks",
+      "name": "[concat(variables('diagnosticStorageAccountName'), '/Microsoft.Authorization/storageDoNotDelete')]",
+      "apiVersion": "[variables('AuthorizationApiVersion')]",
+      "dependsOn": [
+        "[concat('Microsoft.Storage/storageAccounts/', variables('diagnosticStorageAccountName'))]"
+      ],
+      "properties": {
+        "level": "CannotDelete"
+      }
+    }
+
+
+  ],
+  "outputs": {}
+}

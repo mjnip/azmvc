@@ -1,0 +1,490 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "_artifactsLocation": {
+      "type": "string",
+      "metadata": {
+        "_artifactsLocation": "url of storage path created in deploy ps"
+      }
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "metadata": {
+        "_artifactsLocationSasToken": "sas url created in deploy ps"
+      }
+    },
+    "scriptFile": {
+      "type": "string"
+    },
+    "scriptCommandToExecute": {
+      "type": "string",
+      "metadata": {
+        "description": "The command line to execute to invoke the custom script execution"
+      }
+    },
+    "osType": {
+      "type": "string",
+      "allowedValues": [
+        "Windows",
+        "Linux"
+      ],
+      "metadata": {
+        "description": "Deploys windows or linux osType"
+      }
+    },
+    "managedImageId": {
+      "type": "string"
+    },
+    "lbOrNolb": {
+      "type": "string",
+      "defaultValue": "lb",
+      "allowedValues": [
+        "lb",
+        "nolb"
+      ],
+      "metadata": {
+        "description": "Deploy a load balancer or no load balancer"
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_A1",
+      "minLength": 1
+    },
+    "vmName": {
+      "type": "string",
+      "metadata": {
+        "description": ""
+      },
+      "minLength": 3,
+      "maxLength": 64
+    },
+    "computerNamePrefix": {
+      "type": "string",
+      "metadata": {
+        "description": ""
+      },
+      "minLength": 3,
+      "maxLength": 9
+    },
+    "instanceCount": {
+      "type": "int",
+      "metadata": {
+        "description": "Number of VM instances (100 or less)"
+      },
+      "minValue": 1,
+      "maxValue": 100
+    },
+    "adminUsername": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Administrator username on all VMs"
+      }
+    },
+    "adminPassword": {
+      "metadata": {
+        "description": "Administrator password on all VMs"
+      },
+      "type": "securestring"
+    },
+    "subnetname": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "virtualnetworkName": {
+      "type": "string"
+    },
+    "virtualnetworkNameRGName": {
+      "type": "string"
+    },
+    "lbPort": {
+      "type": "int",
+      "metadata": {
+        "description": "port requiring load balancing (if lb required)"
+      }
+    },
+    "lbBePort": {
+      "type": "int",
+      "metadata": {
+        "description": "be port requiring load balancing (if lb required)"
+      }
+    },
+    "diskType": {
+      "type": "string",
+      "metadata": {
+        "description": "Standard_LRS or Premium_LRS"
+      },
+      "allowedValues": [
+        "Standard_LRS",
+        "Premium_LRS"
+      ]
+    },
+    "datadiskCount": {
+      "type": "int",
+      "metadata": {
+        "description": "number of data disk"
+      },
+      "minValue": 1,
+      "maxValue": 64
+    },
+    "datadiskCapacity": {
+      "type": "int",
+      "metadata": {
+        "description": "capacity of disk.  128 GB, 512 GB, 1024 GB, 2048 GB, 4095 GB"
+      },
+      "allowedValues": [
+        128,
+        512,
+        1024,
+        2048,
+        4095
+      ]
+    },
+    "datadiskCaching": {
+      "type": "string",
+      "metadata": {
+        "description": "Set caching of data disk.  ReadOnly, None, ReadWrite"
+      },
+      "allowedValues": [
+        "ReadOnly",
+        "None",
+        "ReadWrite"
+      ]
+    }
+  },
+  "variables": {
+    "namingInfix": "[toLower(concat(parameters('vmName')))]",
+    "longNamingInfix": "[toLower(parameters('vmName'))]",
+    "diagnosticName": "[concat(variables('namingInfix'), 'diag', substring(uniqueString(resourceGroup().id), 0, 5))]",
+    "loadBalancerName": "[concat(variables('namingInfix'), 'lb')]",
+    "lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('loadBalancerName'))]",
+    "bePoolName": "[concat(variables('namingInfix'), 'bepool')]",
+    "lbport": "[parameters('lbport')]",
+    "avSetName": "[concat(variables('namingInfix'), 'as')]",
+    "nicName": "[concat(variables('namingInfix'), 'nic')]",
+    "metricDiag": "[concat(variables('namingInfix'), 'diag')]",
+    "ipConfigName": "[concat(variables('namingInfix'), 'ipconfig')]",
+    "frontEndIPConfigID": "[concat(variables('lbID'),'/frontendIPConfigurations/loadBalancerFrontEnd')]",
+    "computeApiVersion": "2017-03-30",
+    "networkApiVersion": "2017-04-01",
+    "storageApiVersion": "2017-06-01",
+    "extensionApiVersion": "2017-03-30",
+    "diskType": "[parameters('diskType')]",
+    "extensionProfile_Windows": {
+      "publisher": "Microsoft.Compute",
+      "typeHandlerVersion": "1.9",
+      "type": "CustomScriptExtension"
+    },
+    "extensionProfile_Linux": {
+      "publisher": "Microsoft.Azure.Extensions",
+      "typeHandlerVersion": "2.0",
+      "type": "CustomScript"
+    },
+    "subnetRefId": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', parameters('virtualnetworkNameRGName'), '/providers/Microsoft.Network/virtualNetworks/', parameters('virtualnetworkName'), '/subnets/', parameters('subnetName'))]",
+    "wadPublisher_Windows": "Microsoft.Azure.Diagnostics",
+    "wadType_Windows": "IaaSDiagnostics",
+    "wadVersion_Windows": "1.5",
+    "wadlogs_Windows": "<WadCfg> <DiagnosticMonitorConfiguration overallQuotaInMB=\"4096\" xmlns=\"http://schemas.microsoft.com/ServiceHosting/2010/10/DiagnosticsConfiguration\"> <DiagnosticInfrastructureLogs scheduledTransferLogLevelFilter=\"Error\"/> <WindowsEventLog scheduledTransferPeriod=\"PT1M\" > <DataSource name=\"Application!*[System[(Level = 1 or Level = 2)]]\" /> <DataSource name=\"Security!*[System[(Level = 1 or Level = 2)]]\" /> <DataSource name=\"System!*[System[(Level = 1 or Level = 2)]]\" /></WindowsEventLog>",
+    "wadperfcounters1_Windows": "<PerformanceCounters scheduledTransferPeriod=\"PT1M\"><PerformanceCounterConfiguration counterSpecifier=\"\\Processor(_Total)\\% Processor Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU utilization\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor(_Total)\\% Privileged Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU privileged time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor(_Total)\\% User Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU user time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor Information(_Total)\\Processor Frequency\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"CPU frequency\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\System\\Processes\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"Processes\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Process(_Total)\\Thread Count\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"Threads\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Process(_Total)\\Handle Count\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"Handles\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\% Committed Bytes In Use\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Memory usage\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\Available Bytes\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory available\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\Committed Bytes\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory committed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\Commit Limit\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory commit limit\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\% Disk Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk active time\" locale=\"en-us\"/></PerformanceCounterConfiguration>",
+    "wadperfcounters2_Windows": "<PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\% Disk Read Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk active read time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\% Disk Write Time\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk active write time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Transfers/sec\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk operations\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Reads/sec\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk read operations\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Writes/sec\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk write operations\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Bytes/sec\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk speed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Read Bytes/sec\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk read speed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk(_Total)\\Disk Write Bytes/sec\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk write speed\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\LogicalDisk(_Total)\\% Free Space\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Disk free space (percentage)\" locale=\"en-us\"/></PerformanceCounterConfiguration></PerformanceCounters>",
+    "wadcfgxstart_Windows": "[concat(variables('wadlogs_Windows'), variables('wadperfcounters1_Windows'), variables('wadperfcounters2_Windows'), '<Metrics resourceId=\"')]",
+    "wadmetricsresourceid_Windows": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name , '/providers/', 'Microsoft.Compute/virtualMachines/')]",
+    "wadcfgxend_Windows": "\"><MetricAggregation scheduledTransferPeriod=\"PT1H\"/><MetricAggregation scheduledTransferPeriod=\"PT1M\"/></Metrics></DiagnosticMonitorConfiguration></WadCfg>",
+    "wadPublisher_Linux": "Microsoft.OSTCExtensions",
+    "wadType_Linux": "LinuxDiagnostic",
+    "wadVersion_Linux": "2.3",
+    "wadlogs_Linux": "<WadCfg><DiagnosticMonitorConfiguration>",
+    "wadperfcounters1_Linux": "<PerformanceCounters scheduledTransferPeriod=\"PT1M\"><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\AvailableMemory\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory available\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\PercentAvailableMemory\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Mem. percent available\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\UsedMemory\" sampleRate=\"PT15S\" unit=\"Bytes\"><annotation displayName=\"Memory used\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\PercentUsedMemory\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Memory percentage\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Memory\\PercentUsedByCache\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"Mem. used by cache\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor\\PercentIdleTime\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU idle time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor\\PercentUserTime\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU user time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor\\PercentProcessorTime\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU percentage guest OS\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\Processor\\PercentIOWaitTime\" sampleRate=\"PT15S\" unit=\"Percent\"><annotation displayName=\"CPU IO wait time\" locale=\"en-us\"/></PerformanceCounterConfiguration>",
+    "wadperfcounters2_Linux": "<PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk\\BytesPerSecond\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk total bytes\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk\\ReadBytesPerSecond\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk read guest OS\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk\\WriteBytesPerSecond\" sampleRate=\"PT15S\" unit=\"BytesPerSecond\"><annotation displayName=\"Disk write guest OS\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk\\TransfersPerSecond\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk transfers\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk\\ReadsPerSecond\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk reads\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk\\WritesPerSecond\" sampleRate=\"PT15S\" unit=\"CountPerSecond\"><annotation displayName=\"Disk writes\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk\\AverageReadTime\" sampleRate=\"PT15S\" unit=\"Seconds\"><annotation displayName=\"Disk read time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk\\AverageWriteTime\" sampleRate=\"PT15S\" unit=\"Seconds\"><annotation displayName=\"Disk write time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk\\AverageTransferTime\" sampleRate=\"PT15S\" unit=\"Seconds\"><annotation displayName=\"Disk transfer time\" locale=\"en-us\"/></PerformanceCounterConfiguration><PerformanceCounterConfiguration counterSpecifier=\"\\PhysicalDisk\\AverageDiskQueueLength\" sampleRate=\"PT15S\" unit=\"Count\"><annotation displayName=\"Disk queue length\" locale=\"en-us\"/></PerformanceCounterConfiguration></PerformanceCounters>",
+    "wadcfgxstart_Linux": "[concat(variables('wadlogs_Linux'),variables('wadperfcounters1_Linux'),variables('wadperfcounters2_Linux'),'<Metrics resourceId=\"')]",
+    "wadmetricsresourceid_Linux": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name , '/providers/', 'Microsoft.Compute/virtualMachines/')]",
+    "wadcfgxend_Linux": "[concat('\"><MetricAggregation scheduledTransferPeriod=\"PT1H\"/><MetricAggregation scheduledTransferPeriod=\"PT1M\"/></Metrics></DiagnosticMonitorConfiguration></WadCfg>')]"
+  },
+  "resources": [
+    {
+      "condition": "[equals(parameters('lbOrNolb'),'lb')]",
+      "type": "Microsoft.Network/loadBalancers",
+      "name": "[variables('loadBalancerName')]",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "[variables('networkApiVersion')]",
+      "dependsOn": [],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "LoadBalancerFrontEnd",
+            "properties": {
+              "subnet": {
+                "id": "[variables('subnetRefId')]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[variables('bePoolName')]"
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[variables('frontEndIPConfigID')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('loadBalancerName')), '/backendAddressPools/', variables('bePoolName'))]"
+              },
+              "probe": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('loadBalancerName')), '/probes/lbprobe')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": "[parameters('lbPort')]",
+              "backendPort": "[parameters('lbBePort')]",
+              "idleTimeoutInMinutes": 15
+            },
+            "Name": "lbrule"
+          }
+        ],
+        "probes": [
+          {
+            "properties": {
+              "protocol": "Tcp",
+              "port": "[parameters('lbBePort')]",
+              "intervalInSeconds": 15,
+              "numberOfProbes": 2
+            },
+            "name": "lbprobe"
+          }
+        ]
+      }
+    },
+
+    {
+      "name": "[variables('diagnosticName')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "[variables('storageApiVersion')]",
+      "dependsOn": [],
+      "tags": {
+      },
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "Storage",
+      "properties": {
+      }
+    },
+
+    {
+      "type": "Microsoft.Compute/availabilitySets",
+      "name": "[variables('avSetName')]",
+      "apiVersion": "[variables('computeApiVersion')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "platformUpdateDomainCount": 20,
+        "platformFaultDomainCount": 3
+      },
+      "sku": {
+        "name": "Aligned"
+      }
+    },
+
+    {
+      "condition": "[equals(parameters('lbOrNolb'),'lb')]",
+      "name": "[concat(variables('nicName'), 'lb', copyIndex(1))]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "[variables('networkApiVersion')]",
+      "copy": {
+        "name": "nicloop",
+        "count": "[parameters('instanceCount')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/loadBalancers', variables('loadBalancerName'))]"
+      ],
+      "tags": {
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetRefId')]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('loadBalancerName'), '/backendAddressPools/', variables('bePoolName'))]"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+
+    {
+      "condition": "[equals(parameters('lbOrNolb'),'nolb')]",
+      "name": "[concat(variables('nicName'), 'nolb', copyIndex(1))]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "[variables('networkApiVersion')]",
+      "copy": {
+        "name": "nicloop",
+        "count": "[parameters('instanceCount')]"
+      },
+      "dependsOn": [
+      ],
+      "tags": {
+      },
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetRefId')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+
+    {
+      "name": "[concat(variables('namingInfix'), copyIndex(1))]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2016-04-30-preview",
+      "copy": {
+        "name": "vmloop",
+        "count": "[parameters('instanceCount')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('nicName'), parameters('lbOrNolb'), copyIndex(1)))]",
+        "[resourceId('Microsoft.Compute/availabilitySets', variables('avSetName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('diagnosticName'))]"
+      ],
+      "tags": {
+      },
+      "properties": {
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets', variables('avSetName'))]"
+        },
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(parameters('computerNamePrefix'),copyIndex(1))]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "osDisk": {
+            "createOption": "FromImage",
+            "caching": "ReadWrite",
+            "managedDisk": {
+              "storageAccountType": "[variables('diskType')]"
+            }
+          },
+          "imageReference": {
+            "id": "[parameters('managedImageId')]"
+          },
+          "copy": [
+            {
+              "name": "dataDisks",
+              "count": "[parameters('dataDiskCount')]",
+              "input": {
+                "diskSizeGB": "[parameters('datadiskCapacity')]",
+                "lun": "[copyIndex('dataDisks')]",
+                "createOption": "Empty",
+                "caching": "[parameters('datadiskCaching')]",
+                "managedDisk": { "storageAccountType": "[variables('diskType')]" }
+              }
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('nicName'), parameters('lbOrNolb'), copyIndex(1)))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": true,
+            "storageUri": "[concat('http://', variables('diagnosticName'), '.blob.core.windows.net')]"
+          }
+        }
+      }
+    },
+
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(variables('namingInfix'), copyIndex(1), '/script')]",
+      "apiVersion": "[variables('extensionApiVersion')]", 
+      "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachines/', variables('namingInfix'), copyIndex(1))]"
+      ],
+      "copy": {
+        "name": "scriptloop",
+        "count": "[parameters('instanceCount')]"
+      },
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publisher": "[variables(concat('extensionProfile_', parameters('osType'))).publisher]",
+        "type": "[variables(concat('extensionProfile_', parameters('osType'))).type]",
+        "typeHandlerVersion": "[variables(concat('extensionProfile_', parameters('osType'))).typeHandlerVersion]",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "[concat(parameters('_artifactsLocation'), '/', parameters('scriptFile'), parameters('_artifactsLocationSasToken'))]"
+          ]
+        },
+        "protectedSettings": {
+          "commandToExecute": "[parameters('scriptCommandToExecute')]"
+        }
+
+      }
+    },
+
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "name": "[concat(variables('namingInfix'), copyIndex(1), '/insights')]",
+      "apiVersion": "[variables('extensionApiVersion')]",
+      "location": "[resourceGroup().location]",
+      "tags": {
+      },
+      "copy": {
+        "name": "diagloop",
+        "count": "[parameters('instanceCount')]"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachines/', variables('namingInfix'), copyIndex(1))]"
+      ],
+      "properties": {
+        "publisher": "[variables(concat('wadPublisher_', parameters('osType')))]",
+        "type": "[variables(concat('wadType_', parameters('osType')))]",
+        "typeHandlerVersion": "[variables(concat('wadVersion_', parameters('osType')))]", 
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "xmlCfg": "[base64(concat(variables(concat('wadcfgxstart_', parameters('osType'))),variables(concat('wadMetricsResourceId_', parameters('osType'))), variables('namingInfix'), copyIndex(1), variables(concat('wadcfgxend_', parameters('osType')))))]",
+          "storageAccount": "[variables('diagnosticName')]"
+        },
+        "protectedSettings": {
+          "storageAccountName": "[variables('diagnosticName')]",
+          "storageAccountKey": "[listkeys(variables('diagnosticName'), variables('storageApiVersion')).keys[0].value]",
+          "storageAccountEndPoint": "https://core.windows.net"
+        }
+
+      }
+    }
+
+
+
+  ]
+}

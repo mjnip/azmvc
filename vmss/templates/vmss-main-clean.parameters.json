@@ -1,0 +1,117 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    "vmssName": {
+      "value": ""
+    },
+    "computerNamePrefix": {
+      "value": ""
+    },
+    "instanceCount": {
+      "value": 3
+    },
+    "diskType": {
+      "value": ""
+    },
+    "vmSize": {
+      "value": ""
+    },
+    "lbOrNolb": {
+      "value": ""
+    },
+    "lbPort": {
+      "value": 443
+    },
+    "lbBePort": {
+      "value": 80
+    },
+    "adminUsername": {
+      "value": ""
+    },
+    "scriptFile": {
+      "value": ""
+    },
+    "scriptCommandToExecute": {
+      "value": ""
+    },
+    "adminPassword": {
+      "value": ""
+    },
+    "subnetname": {
+      "value": ""
+    },
+    "virtualnetworkName": {
+      "value": ""
+    },
+    "virtualnetworkNameRGName": {
+      "value": ""
+    },
+    "workspaceName": {
+      "value": ""
+    },
+    "oms-subid": {
+      "value": ""
+    },
+    "oms-rg": {
+      "value": ""
+    },
+    "osType": {
+      "value": "Linux"
+    },
+    "managedImageId": {
+      "value": ""
+    },
+
+    /* everything below is for autoscale and param inputs can be completely removed if autoscale is unnecessary */
+    "autoscaleEnabled": {
+      "value": false
+    },
+    "scaleByMetric": {
+      "value": "CPU"
+    },
+    "scaleInByTimeWindow": {
+      "value": "10M"
+    },
+    "scaleOutByTimeWindow": {
+      "value": "10M"
+    },
+    "scaleInByStatistic": {
+      "value": "Max"
+    },
+    "scaleOutByStatistic": {
+      "value": "Average"
+    },
+    "scaleOutByOperator": {
+      "value": "GreaterThan"
+    },
+    "scaleInByOperator": {
+      "value": "LessThan"
+    },
+    "scaleOutByThreshold": {
+      "value": 65
+    },
+    "scaleInByThreshold": {
+      "value": 50
+    },
+    "scaleInByType": {
+      "value": "ExactCount"
+    },
+    "scaleOutByType": {
+      "value": "PercentChangeCount"
+    },
+    "scaleInByValue": {
+      "value": 6
+    },
+    "scaleOutByValue": {
+      "value": 50
+    },
+    "scaleOutByCooldown": {
+      "value": "1H30M"
+    },
+    "scaleInByCooldown": {
+      "value": "2H"
+    }
+  }
+}

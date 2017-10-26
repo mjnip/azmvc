@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    "vmName": {
+      "value": "lvm"
+    },
+    "computerNamePrefix": {
+      "value": "lvm"
+    },
+    "instanceCount": {
+      "value": 3
+    },
+    "diskType": {
+      "value": "Premium_LRS"
+    },
+    "vmSize": {
+      "value": "Standard_DS1_v2"
+    },
+    "lbOrNolb": {
+      "value": "lb"
+    },
+    "lbPort": {
+      "value": 443
+    },
+    "lbBePort": {
+      "value": 80
+    },
+    "adminUsername": {
+      "value": "mjnipadmin"
+    },
+    "scriptFile": {
+      "value": "install.sh"
+    },
+    "scriptCommandToExecute": {
+      "value": "./install.sh"
+    },
+    "adminPassword": {
+      "value": "1qaz1qaz!QAZ"
+    },
+    "subnetname": {
+      "value": "default"
+    },
+    "virtualnetworkName": {
+      "value": "markit-vnet"
+    },
+    "virtualnetworkNameRGName": {
+      "value": "MarkIT-Network"
+    },
+    "osType": {
+      "value": "Linux"
+    },
+    "managedImageId": {
+      "value": "/subscriptions/16d2a3ff-8221-4460-88a2-dd7643a77a8f/resourceGroups/CustomImages/providers/Microsoft.Compute/images/linuxcustom3"
+    },
+    "datadiskCount": {
+      "value": 2
+    },
+    "datadiskCapacity": {
+      "value": 128
+    },
+    "datadiskCaching": {
+      "value": "None"
+    }
+  }
+}

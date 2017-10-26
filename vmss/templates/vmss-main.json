@@ -1,0 +1,709 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "_artifactsLocation": {
+      "type": "string",
+      "metadata": {
+        "_artifactsLocation": "url of storage path created in deploy ps"
+      }
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "metadata": {
+        "_artifactsLocationSasToken": "sas url created in deploy ps"
+      }
+    },
+    "oms-subid": {
+      "type": "string"
+    },
+    "oms-rg": {
+      "type": "string"
+    },
+    "workspaceName": {
+      "type": "string"
+    },
+    "scriptFile": {
+      "type": "string"
+    },
+    "scriptCommandToExecute": {
+      "type": "string",
+      "metadata": {
+        "description": "The command line to execute to invoke the custom script execution"
+      }
+    },
+    "osType": {
+      "type": "string",
+      "allowedValues": [
+        "Windows",
+        "Linux"
+      ],
+      "metadata": {
+        "description": "Deploy a load balancer or no load balancer"
+      }
+    },
+    "managedImageId": {
+      "type": "string"
+    },
+    "lbOrNolb": {
+      "type": "string",
+      "defaultValue": "lb",
+      "allowedValues": [
+        "lb",
+        "nolb"
+      ],
+      "metadata": {
+        "description": "Deploy a load balancer or no load balancer"
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_A1",
+      "minLength": 1
+    },
+    "vmssName": {
+      "type": "string",
+      "metadata": {
+        "description": ""
+      },
+      "minLength": 3,
+      "maxLength": 64
+    },
+    "computerNamePrefix": {
+      "type": "string",
+      "metadata": {
+        "description": ""
+      },
+      "minLength": 3,
+      "maxLength": 9
+    },
+    "instanceCount": {
+      "type": "int",
+      "metadata": {
+        "description": "Number of VM instances (100 or less)"
+      },
+      "minValue": 1,
+      "maxValue": 100
+    },
+    "adminUsername": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "Administrator username on all VMs"
+      }
+    },
+    "adminPassword": {
+      "metadata": {
+        "description": "Administrator password on all VMs"
+      },
+      "type": "securestring"
+    },
+    "subnetname": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "virtualnetworkName": {
+      "type": "string"
+    },
+    "virtualnetworkNameRGName": {
+      "type": "string"
+    },
+    "lbPort": {
+      "type": "int",
+      "metadata": {
+        "description": "port requiring load balancing (if lb required)"
+      }
+    },
+    "lbBePort": {
+      "type": "int",
+      "metadata": {
+        "description": "be port requiring load balancing (if lb required)"
+      }
+    },
+    "diskType": {
+      "type": "string",
+      "metadata": {
+        "description": "Standard_LRS or Premium_LRS"
+      },
+      "allowedValues": [
+        "Standard_LRS",
+        "Premium_LRS"
+      ]
+    },
+    "autoscaleEnabled": {
+      "type": "bool",
+      "defaultValue": false
+    },
+    "scaleByMetric": {
+      "type": "string",
+      "metadata": {
+        "description": "CPU or MEM"
+      },
+      "allowedValues": [
+        "CPU",
+        "MEM"
+      ],
+      "defaultValue": "CPU"
+    },
+    "scaleInByTimeWindow": {
+      "type": "string",
+      "metadata": {
+        "description": "Time window for scale in rule.  This is a string representation of time.  Strict values:  1M, 5M, 10M, 20M, 30M, 45M, 1H, 1H15M, 1H30M, 1H40M"
+      },
+      "allowedValues": [
+        "1M",
+        "5M",
+        "10M",
+        "20M",
+        "30M",
+        "45M",
+        "1H",
+        "1H15M",
+        "1H30M",
+        "1H40M"
+      ],
+      "defaultValue": "10M"
+    },
+    "scaleOutByTimeWindow": {
+      "type": "string",
+      "metadata": {
+        "description": "Time window for scale out rule.  This is a string representation of time.  Strict values:  1M, 5M, 10M, 20M, 30M, 45M, 1H, 1H15M, 1H30M, 1H40M"
+      },
+      "allowedValues": [
+        "1M",
+        "5M",
+        "10M",
+        "20M",
+        "30M",
+        "45M",
+        "1H",
+        "1H15M",
+        "1H30M",
+        "1H40M"
+      ],
+      "defaultValue": "10M"
+    },
+    "scaleInByStatistic": {
+      "type": "string",
+      "metadata": {
+        "description": "Average or Min or Max"
+      },
+      "allowedValues": [
+        "Average",
+        "Min",
+        "Max"
+      ],
+      "defaultValue": "Average"
+    },
+    "scaleOutByStatistic": {
+      "type": "string",
+      "metadata": {
+        "description": "Average or Min or Max"
+      },
+      "allowedValues": [
+        "Average",
+        "Min",
+        "Max"
+      ],
+      "defaultValue": "Average"
+    },
+    "scaleOutByOperator": {
+      "type": "string",
+      "metadata": {
+        "description": "Operator for scale out. GreaterThan or LessThan"
+      },
+      "allowedValues": [
+        "GreaterThan",
+        "LessThan"
+      ],
+      "defaultValue": "GreaterThan"
+    },
+    "scaleInByOperator": {
+      "type": "string",
+      "metadata": {
+        "description": "Operator for scale in.  GreaterThan or LessThan"
+      },
+      "allowedValues": [
+        "GreaterThan",
+        "LessThan"
+      ],
+      "defaultValue": "GreaterThan"
+    },
+    "scaleOutByThreshold": {
+      "type": "int",
+      "metadata": {
+        "description": "Threshold for scale out rule.  This is a percentage from 1 to 100"
+      },
+      "minValue": 1,
+      "maxValue": 100,
+      "defaultValue": 70
+    },
+    "scaleInByThreshold": {
+      "type": "int",
+      "metadata": {
+        "description": "Threshold for scale in rule.  This is a percentage from 1 to 100"
+      },
+      "minValue": 1,
+      "maxValue": 100,
+      "defaultValue": 70
+    },
+    "scaleInByType": {
+      "type": "string",
+      "metadata": {
+        "description": "Type of scale action for scale in.  ChangeCount, PercentChangeCount, ExactCount."
+      },
+      "allowedValues": [
+        "ChangeCount",
+        "PercentChangeCount",
+        "ExactCount"
+      ],
+      "defaultValue": "ChangeCount"
+    },
+    "scaleOutByType": {
+      "type": "string",
+      "metadata": {
+        "description": "Type of scale action for scale out.  ChangeCount, PercentChangeCount, ExactCount."
+      },
+      "allowedValues": [
+        "ChangeCount",
+        "PercentChangeCount",
+        "ExactCount"
+      ],
+      "defaultValue": "ChangeCount"
+    },
+    "scaleInByValue": {
+      "type": "int",
+      "metadata": {
+        "description": "Instance value for scale in rule.  This is a percentage, exact count, or incremental increase from 1 to 100"
+      },
+      "minValue": 1,
+      "maxValue": 100,
+      "defaultValue": 1
+    },
+    "scaleOutByValue": {
+      "type": "int",
+      "metadata": {
+        "description": "Instance value for scale out rule.  This is a percentage, exact count, or incremental increase from 1 to 100"
+      },
+      "minValue": 1,
+      "maxValue": 100,
+      "defaultValue": 1
+    },
+    "scaleOutByCooldown": {
+      "type": "string",
+      "metadata": {
+        "description": "Cooldown time for scale out rule.  This is a string representation of time.  Strict values:  1M, 5M, 10M, 20M, 30M, 1H, 1H30M, 2H, 2H30M, 3H, 4H, 5H, 1D, 2D"
+      },
+      "allowedValues": [
+        "1M",
+        "5M",
+        "10M",
+        "20M",
+        "30M",
+        "1H",
+        "1H30M",
+        "2H",
+        "2H30M",
+        "3H",
+        "4H",
+        "5H",
+        "1D",
+        "2D"
+      ],
+      "defaultValue": "10M"
+    },
+    "scaleInByCooldown": {
+      "type": "string",
+      "metadata": {
+        "description": "Cooldown time for scale in rule.  This is a string representation of time.  Strict values:  1M, 5M, 10M, 20M, 30M, 1H, 1H30M, 2H, 2H30M, 3H, 4H, 5H, 1D, 2D"
+      },
+      "allowedValues": [
+        "1M",
+        "5M",
+        "10M",
+        "20M",
+        "30M",
+        "1H",
+        "1H30M",
+        "2H",
+        "2H30M",
+        "3H",
+        "4H",
+        "5H",
+        "1D",
+        "2D"
+      ],
+      "defaultValue": "10M"
+    }
+  },
+  "variables": {
+    "namingInfix": "[toLower(concat(parameters('vmssName')))]",
+    "longNamingInfix": "[toLower(parameters('vmssName'))]",
+    "loadBalancerName": "[concat(variables('namingInfix'), 'lb')]",
+    "lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('loadBalancerName'))]",
+    "bePoolName": "[concat(variables('namingInfix'), 'bepool')]",
+    "lbport": "[parameters('lbport')]",
+    "nicName": "[concat(variables('namingInfix'), 'nic')]",
+    "ipConfigName": "[concat(variables('namingInfix'), 'ipconfig')]",
+    "frontEndIPConfigID": "[concat(variables('lbID'),'/frontendIPConfigurations/loadBalancerFrontEnd')]",
+    "computeApiVersion": "2017-03-30",
+    "networkApiVersion": "2017-04-01",
+    "diskType": "[parameters('diskType')]",
+    "extensionProfile_Windows": {
+      "publisher": "Microsoft.Compute",
+      "typeHandlerVersion": "1.9",
+      "type": "CustomScriptExtension"
+    },
+    "extensionProfile_Linux": {
+      "publisher": "Microsoft.Azure.Extensions",
+      "typeHandlerVersion": "2.0",
+      "type": "CustomScript"
+    },
+    "vmssResId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Compute/virtualMachineScaleSets/', variables('namingInfix'), parameters('lbOrNoLb'))]",
+    "asDecMetricName_CPU": "Percentage CPU",
+    "asDecMetricName_MEM": "\\Memory\\% Committed Bytes In Use",
+    "asDecTimeWindow": "[concat('PT', parameters('scaleInByTimeWindow'))]",
+    "asDecStatistic": "[parameters('scaleInByStatistic')]",
+    "asDecOperator": "[parameters('scaleInByOperator')]",
+    "asDecThreshold": "[parameters('scaleInByThreshold')]",
+    "asDecType": "[parameters('scaleInByType')]",
+    "asDecValue": "[parameters('scaleInByValue')]",
+    "asDecCoolDown": "[concat('PT', parameters('scaleInByCoolDown'))]",
+    "asIncMetricName_CPU": "Percentage CPU",
+    "asIncMetricName_MEM": "\\Memory\\% Committed Bytes In Use",
+    "asIncTimeWindow": "[concat('PT', parameters('scaleOutByTimeWindow'))]",
+    "asIncStatistic": "[parameters('scaleOutByStatistic')]",
+    "asIncOperator": "[parameters('scaleOutByOperator')]",
+    "asIncThreshold": "[parameters('scaleOutByThreshold')]",
+    "asIncType": "[parameters('scaleOutByType')]",
+    "asIncValue": "[parameters('scaleOutByValue')]",
+    "asIncCoolDown": "[concat('PT', parameters('scaleOutByCoolDown'))]"
+  },
+  "resources": [
+    {
+      "condition": "[equals(parameters('lbOrNolb'),'lb')]",
+      "type": "Microsoft.Network/loadBalancers",
+      "name": "[variables('loadBalancerName')]",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "[variables('networkApiVersion')]",
+      "dependsOn": [],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "LoadBalancerFrontEnd",
+            "properties": {
+              "subnet": {
+                "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', parameters('virtualnetworkNameRGName'), '/providers/Microsoft.Network/virtualNetworks/', parameters('virtualnetworkName'), '/subnets/', parameters('subnetName'))]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[variables('bePoolName')]"
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[variables('frontEndIPConfigID')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('loadBalancerName')), '/backendAddressPools/', variables('bePoolName'))]"
+              },
+              "probe": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('loadBalancerName')), '/probes/lbprobe')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": "[parameters('lbPort')]",
+              "backendPort": "[parameters('lbBePort')]",
+              "idleTimeoutInMinutes": 15
+            },
+            "Name": "lbrule"
+          }
+        ],
+        "probes": [
+          {
+            "properties": {
+              "protocol": "Tcp",
+              "port": "[parameters('lbBePort')]",
+              "intervalInSeconds": 15,
+              "numberOfProbes": 2
+            },
+            "name": "lbprobe"
+          }
+        ]
+      }
+    },
+    {
+      "condition": "[equals(parameters('lbOrNolb'),'lb')]",
+      "type": "Microsoft.Compute/virtualMachineScaleSets",
+      "name": "[concat(variables('namingInfix'),'lb')]",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "[variables('computeApiVersion')]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/loadBalancers/', variables('loadBalancerName'))]"
+      ],
+      "sku": {
+        "name": "[parameters('vmSize')]",
+        "tier": "Standard",
+        "capacity": "[parameters('instanceCount')]"
+      },
+      "properties": {
+        "overprovision": "false",
+        "upgradePolicy": {
+          "mode": "Manual"
+        },
+        "virtualMachineProfile": {
+          "storageProfile": {
+            "osDisk": {
+              "createOption": "FromImage",
+              "caching": "ReadOnly",
+              "managedDisk": {
+                "storageAccountType": "[variables('diskType')]"
+              }
+            },
+            "imageReference": {
+              "id": "[parameters('managedImageId')]"
+            }
+
+          },
+          "osProfile": {
+            "computerNamePrefix": "[toLower(parameters('computerNamePrefix'))]",
+            "adminUsername": "[parameters('adminUsername')]",
+            "adminPassword": "[parameters('adminPassword')]"
+          },
+          "networkProfile": {
+            "networkInterfaceConfigurations": [
+              {
+                "name": "[variables('nicName')]",
+                "properties": {
+                  "primary": "true",
+                  "ipConfigurations": [
+                    {
+                      "name": "[variables('ipConfigName')]",
+                      "properties": {
+                        "subnet": {
+                          "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', parameters('virtualnetworkNameRGName'), '/providers/Microsoft.Network/virtualNetworks/', parameters('virtualnetworkName'), '/subnets/', parameters('subnetName'))]"
+                        },
+                        "loadBalancerBackendAddressPools": [
+                          {
+                            "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('loadBalancerName'), '/backendAddressPools/', variables('bePoolName'))]"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "extensionProfile": {
+            "extensions": [
+              {
+                "type": "extensions",
+                "name": "executeScript",
+                "location": "[resourceGroup().location]",
+                "properties": {
+                  "publisher": "[variables(concat('extensionProfile_', parameters('osType'))).publisher]",
+                  "type": "[variables(concat('extensionProfile_', parameters('osType'))).type]",
+                  "typeHandlerVersion": "[variables(concat('extensionProfile_', parameters('osType'))).typeHandlerVersion]",
+                  "autoUpgradeMinorVersion": true,
+                  "settings": {
+                    "fileUris": [
+                      "[concat(parameters('_artifactsLocation'), '/', parameters('scriptFile'), parameters('_artifactsLocationSasToken'))]"
+                    ]
+                  },
+                  "protectedSettings": {
+                    "commandToExecute": "[parameters('scriptCommandToExecute')]"
+                  }
+
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "condition": "[equals(parameters('lbOrNolb'),'nolb')]",
+      "type": "Microsoft.Compute/virtualMachineScaleSets",
+      "name": "[concat(variables('namingInfix'),'nolb')]",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "[variables('computeApiVersion')]",
+      "dependsOn": [
+      ],
+      "sku": {
+        "name": "[parameters('vmSize')]",
+        "tier": "Standard",
+        "capacity": "[parameters('instanceCount')]"
+      },
+      "properties": {
+        "overprovision": "false",
+        "upgradePolicy": {
+          "mode": "Manual"
+        },
+        "virtualMachineProfile": {
+          "storageProfile": {
+            "osDisk": {
+              "createOption": "FromImage",
+              "caching": "ReadOnly",
+              "managedDisk": {
+                "storageAccountType": "[variables('diskType')]"
+              }
+            },
+            "imageReference": {
+              "id": "[parameters('managedImageId')]"
+            }
+
+          },
+          "osProfile": {
+            "computerNamePrefix": "[toLower(parameters('computerNamePrefix'))]",
+            "adminUsername": "[parameters('adminUsername')]",
+            "adminPassword": "[parameters('adminPassword')]"
+          },
+          "networkProfile": {
+            "networkInterfaceConfigurations": [
+              {
+                "name": "[variables('nicName')]",
+                "properties": {
+                  "primary": "true",
+                  "ipConfigurations": [
+                    {
+                      "name": "[variables('ipConfigName')]",
+                      "properties": {
+                        "subnet": {
+                          "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', parameters('virtualnetworkNameRGName'), '/providers/Microsoft.Network/virtualNetworks/', parameters('virtualnetworkName'), '/subnets/', parameters('subnetName'))]"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "extensionProfile": {
+            "extensions": [
+              {
+                //"type": "extensions",
+                "name": "executeScript",
+                "location": "[resourceGroup().location]",
+                "properties": {
+                  "publisher": "[variables(concat('extensionProfile_', parameters('osType'))).publisher]",
+                  "type": "[variables(concat('extensionProfile_', parameters('osType'))).type]",
+                  "typeHandlerVersion": "[variables(concat('extensionProfile_', parameters('osType'))).typeHandlerVersion]",
+                  "autoUpgradeMinorVersion": true,
+                  "settings": {
+                    "fileUris": [
+                      "[concat(parameters('_artifactsLocation'), '/', parameters('scriptFile'), parameters('_artifactsLocationSasToken'))]"
+                    ]
+                  },
+                  "protectedSettings": {
+                    "commandToExecute": "[parameters('scriptCommandToExecute')]"
+                  }
+
+                }
+              }
+            ]
+          }
+        }
+      }
+
+
+    },*/
+    {
+      "type": "Microsoft.Compute/virtualMachineScaleSets/providers/diagnosticSettings",
+      "name": "[concat(variables('namingInfix'), parameters('lbOrNoLb'), '/', 'Microsoft.Insights/service')]",
+      "apiVersion": "2015-07-01",
+      "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachineScaleSets/', variables('namingInfix'), parameters('lbOrNoLb'))]"
+      ],
+      "properties": {
+        "workspaceId": "[concat('/subscriptions/', parameters('oms-subid'), '/resourceGroups/', parameters('oms-rg'), '/providers/Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]",
+        "metrics": [
+          {
+            "timeGrain": "PT1M",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": false,
+              "days": 0
+            }
+
+          }
+        ]
+      }
+    },
+
+    {
+      "name": "[concat('autoscale', variables('namingInfix'), parameters('lbOrNoLb'))]",
+      "type": "Microsoft.Insights/autoscaleSettings",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-04-01",
+      "dependsOn": [
+        "[concat('Microsoft.Compute/virtualMachineScaleSets/', variables('namingInfix'), parameters('lbOrNoLb'))]"
+      ],
+      "properties": {
+        "profiles": [
+          {
+            "name": "Scale Condition",
+            "capacity": {
+              "minimum": "0",
+              "maximum": "100",
+              "default": "1"
+            },
+            "rules": [
+              {
+                "metricTrigger": {
+                  "metricName": "[variables(concat('asIncMetricName', '_', parameters('scaleByMetric')))]",
+                  "metricNamespace": "",
+                  "metricResourceUri": "[variables('vmssResId')]",
+                  "metricResourceLocation": "[resourceGroup().location]",
+                  "timeGrain": "PT1M",
+                  "statistic": "[variables('asIncStatistic')]",
+                  "timeWindow": "[variables('asIncTimeWindow')]",
+                  "timeAggregation": "Average",
+                  "operator": "[variables('asIncOperator')]",
+                  "threshold": "[variables('asIncThreshold')]"
+                },
+                "scaleAction": {
+                  "direction": "Increase",
+                  "type": "[variables('asIncType')]",
+                  "value": "[variables('asIncValue')]",
+                  "cooldown": "[variables('asIncCoolDown')]"
+                }
+              },
+              {
+                "metricTrigger": {
+                  "metricName": "[variables(concat('asDecMetricName', '_', parameters('scaleByMetric')))]",
+                  "metricNamespace": "",
+                  "metricResourceUri": "[variables('vmssResId')]",
+                  "metricResourceLocation": "[resourceGroup().location]",
+                  "timeGrain": "PT1M",
+                  "statistic": "[variables('asDecStatistic')]",
+                  "timeWindow": "[variables('asDecTimeWindow')]",
+                  "timeAggregation": "Average",
+                  "operator": "[variables('asDecOperator')]",
+                  "threshold": "[variables('asDecThreshold')]"
+                },
+                "scaleAction": {
+                  "direction": "Decrease",
+                  "type": "[variables('asDecType')]",
+                  "value": "[variables('asDecValue')]",
+                  "cooldown": "[variables('asDecCoolDown')]"
+                }
+              }
+            ]
+          }
+        ],
+        "enabled": "[parameters('autoscaleEnabled')]",
+        "name": "[concat('autoscale', variables('namingInfix'), parameters('lbOrNoLb'))]",
+        "targetResourceUri": "[variables('vmssResId')]",
+        "targetResourceLocation": "[resourceGroup().location]",
+        "notifications": []
+      }
+    }
+
+
+  ]
+}

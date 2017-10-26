@@ -1,0 +1,114 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmssName": {
+      "value": "winvmss"
+    },
+    "computerNamePrefix": {
+      "value": "wvms"
+    },
+    "instanceCount": {
+      "value": 2
+    },
+    "diskType": {
+      "value": "Standard_LRS"
+    },
+    "vmSize": {
+      "value": "Standard_DS1_v2"
+    },
+    "lbOrNolb": {
+      "value": "lb"
+    },
+    "lbPort": {
+      "value": 443
+    },
+    "lbBePort": {
+      "value": 80
+    },
+    "adminUsername": {
+      "value": "mjnipadmin"
+    },
+    "scriptFile": {
+      "value": "script.ps1"
+    },
+    "scriptCommandToExecute": {
+      "value": "powershell -ExecutionPolicy Unrestricted -File script.ps1"
+    },
+    "adminPassword": {
+      "value": "1qaz1qaz!QAZ"
+    },
+    "subnetname": {
+      "value": "default"
+    },
+    "virtualnetworkName": {
+      "value": "markit-vnet"
+    },
+    "virtualnetworkNameRGName": {
+      "value": "MarkIT-Network"
+    },
+    "workspaceName": {
+      "value": "nipopinsights"
+    },
+    "oms-subid": {
+      "value": "16d2a3ff-8221-4460-88a2-dd7643a77a8f"
+    },
+    "oms-rg": {
+      "value": "OI-Default-East-US"
+    },
+    "osType": {
+      "value": "Windows"
+    },
+    "managedImageId": {
+      "value": "/subscriptions/16d2a3ff-8221-4460-88a2-dd7643a77a8f/resourceGroups/wincustomdeploy/providers/Microsoft.Compute/images/winbake2"
+    },
+    "autoscaleEnabled": {
+      "value": true
+    },
+    "scaleByMetric": {
+      "value": "CPU"
+    },
+    "scaleInByTimeWindow": {
+      "value": "10M"
+    },
+    "scaleOutByTimeWindow": {
+      "value": "10M"
+    },
+    "scaleInByStatistic": {
+      "value": "Max"
+    },
+    "scaleOutByStatistic": {
+      "value": "Average"
+    },
+    "scaleOutByOperator": {
+      "value": "GreaterThan"
+    },
+    "scaleInByOperator": {
+      "value": "LessThan"
+    },
+    "scaleOutByThreshold": {
+      "value": 65
+    },
+    "scaleInByThreshold": {
+      "value": 50
+    },
+    "scaleInByType": {
+      "value": "ExactCount"
+    },
+    "scaleOutByType": {
+      "value": "PercentChangeCount"
+    },
+    "scaleInByValue": {
+      "value": 6
+    },
+    "scaleOutByValue": {
+      "value": 50
+    },
+    "scaleOutByCooldown": {
+      "value": "1H30M"
+    },
+    "scaleInByCooldown": {
+      "value": "2H"
+    }
+  }
+}

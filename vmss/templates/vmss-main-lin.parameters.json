@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+
+    "vmssName": {
+      "value": "lvmss"
+    },
+    "computerNamePrefix": {
+      "value": "lvms"
+    },
+    "instanceCount": {
+      "value": 3
+    },
+    "diskType": {
+      "value": "Premium_LRS"
+    },
+    "vmSize": {
+      "value": "Standard_DS1_v2"
+    },
+    "lbOrNolb": {
+      "value": "nolb"
+    },
+    "lbPort": {
+      "value": 443
+    },
+    "lbBePort": {
+      "value": 80
+    },
+    "adminUsername": {
+      "value": "mjnipadmin"
+    },
+    "scriptFile": {
+      "value": "install.sh"
+    },
+    "scriptCommandToExecute": {
+      "value": "./install.sh"
+    },
+    "adminPassword": {
+      "value": "1qaz1qaz!QAZ"
+    },
+    "subnetname": {
+      "value": "default"
+    },
+    "virtualnetworkName": {
+      "value": "markit-vnet"
+    },
+    "virtualnetworkNameRGName": {
+      "value": "MarkIT-Network"
+    },
+    "workspaceName": {
+      "value": "nipopinsights"
+    },
+    "oms-subid": {
+      "value": "16d2a3ff-8221-4460-88a2-dd7643a77a8f"
+    },
+    "oms-rg": {
+      "value": "OI-Default-East-US"
+    },
+    "osType": {
+      "value": "Linux"
+    },
+    "managedImageId": {
+      "value": "/subscriptions/16d2a3ff-8221-4460-88a2-dd7643a77a8f/resourceGroups/k8/providers/Microsoft.Compute/images/linuxcustom"
+    }
+  }
+}

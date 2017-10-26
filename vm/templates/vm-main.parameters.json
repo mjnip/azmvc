@@ -1,0 +1,67 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName": {
+      "value": "winvm"
+    },
+    "computerNamePrefix": {
+      "value": "wvm"
+    },
+    "instanceCount": {
+      "value": 2
+    },
+    "diskType": {
+      "value": "Standard_LRS"
+    },
+    "vmSize": {
+      "value": "Standard_DS1_v2"
+    },
+    "lbOrNolb": {
+      "value": "nolb"
+    },
+    "lbPort": {
+      "value": 443
+    },
+    "lbBePort": {
+      "value": 80
+    },
+    "adminUsername": {
+      "value": "mjnipadmin"
+    },
+    "scriptFile": {
+      "value": "script.ps1"
+    },
+    "scriptCommandToExecute": {
+      "value": "powershell -ExecutionPolicy Unrestricted -File script.ps1"
+    },
+    "adminPassword": {
+      "value": "1qaz1qaz!QAZ"
+    },
+    "subnetname": {
+      "value": "default"
+    },
+    "virtualnetworkName": {
+      "value": "markit-vnet"
+    },
+    "virtualnetworkNameRGName": {
+      "value": "MarkIT-Network"
+    },
+
+    "osType": {
+      "value": "Windows"
+    },
+    "managedImageId": {
+      "value": "/subscriptions/16d2a3ff-8221-4460-88a2-dd7643a77a8f/resourceGroups/wincustomdeploy/providers/Microsoft.Compute/images/winbake2"
+    },
+    "datadiskCount": {
+      "value": 2
+    },
+    "datadiskCapacity": {
+      "value": 128
+    },
+    "datadiskCaching": {
+      "value": "None"
+    }
+  }
+}

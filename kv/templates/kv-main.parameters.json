@@ -1,0 +1,97 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "keyVaultName": {
+      "value": "tdkv"
+    },
+    "accessPolicies": {
+      "value": [
+        {
+          "tenantId": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+          "objectId": "8e98ca3c-e5be-46cc-8956-13bed2417a99",
+          "permissions": {
+            "keys": [
+              "encrypt",
+              "decrypt",
+              "wrapKey",
+              "unwrapKey",
+              "sign",
+              "verify",
+              "get",
+              "list"
+            ],
+            "secrets": [
+              "backup",
+              "restore",
+              "recover",
+              "purge"
+            ],
+            "certificates": [
+              "get",
+              "list",
+              "delete",
+              "create",
+              "import",
+              "update",
+              "managecontacts",
+              "getissuers",
+              "listissuers",
+              "setissuers",
+              "deleteissuers",
+              "manageissuers",
+              "recover",
+              "purge"
+            ]
+          }
+        },
+        {
+          "tenantId": "72f988bf-86f1-41af-91ab-2d7cd011db47",
+          "objectId": "f547104c-cf7f-41ad-88b8-b301ba8c1a21",
+          "permissions": {
+            "keys": [
+              "encrypt",
+              "decrypt",
+              "wrapKey",
+              "unwrapKey",
+              "sign",
+              "verify",
+              "get",
+              "list"
+            ],
+            "secrets": [
+              "backup",
+              "restore",
+              "recover",
+              "purge"
+            ],
+            "certificates": [
+              "all"
+            ]
+          }
+        }
+      ]
+    },
+    "logsRetentionInDays": {
+      "value": 120
+    },
+    "enableVaultForDeployment": {
+      "value": true
+    },
+    "enableVaultForTemplateDeployment": {
+      "value": true
+    },
+    "enableVaultForDiskEncryption": {
+      "value": true
+    },
+    "vaultSku": {
+      "value": "Standard"
+    },
+    "vaultSoftDelete": {
+      "value": "disabled"
+    },
+    "protectWithLocks": {
+      "value": "disabled"
+    }
+  }
+}

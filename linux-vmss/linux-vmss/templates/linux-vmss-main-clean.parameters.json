@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmssName": {
+      "value": ""
+    },
+    "instanceCount": {
+      "value": 2
+    },
+    "lbOrNolb": {
+      "value": "nolb"
+    },
+    "adminUsername": {
+      "value": ""
+    },
+    "adminPassword": {
+      "value": ""
+    },
+    "subnetname": {
+      "value": ""
+    },
+    "virtualnetworkName": {
+      "value": ""
+    },
+    "virtualnetworkNameRGName": {
+      "value": ""
+    },
+    "workspaceName": {
+      "value": ""
+    },
+    "oms-rg": {
+      "value": ""
+    },
+    "scriptFile": {
+      "value": ""
+    }
+  }
+}
