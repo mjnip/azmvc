@@ -31,6 +31,8 @@
     <Compile Include="Azure-Pipeline-Deploy.ps1" />
     <Compile Include="Azure-Pipeline-Release.ps1" />
     <Compile Include="Azure-Pipeline-Teardown.ps1" />
+    <Compile Include="DeployBlob.txt" />
+    <Compile Include="DeployBlob.ps1" />
     <Compile Include="deploy\Azure.Pipeline.psd1" />
     <Compile Include="deploy\Azure.Pipeline.psm1" />
   </ItemGroup>

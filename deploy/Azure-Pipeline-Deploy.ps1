@@ -600,7 +600,6 @@ Function Remove-DeployStorageBlobResourceGroup {
 ## FUNCTION New-DeployStorageBlob
 # Creates a storage account blob to upload deployment artifacts into, includes custom scripts, nested templates, etc.
 
-# Returns an @parameters object for _artifactsLocation, _artifactsSasToken
 
 Function New-DeployStorageBlob {
 	Param(
@@ -609,31 +608,29 @@ Function New-DeployStorageBlob {
     [Parameter(Mandatory=$true)][string]$ResourceGroupName,
 	[Parameter(Mandatory=$true)][string]$ApplicationName,
 	[Parameter(Mandatory=$true)][string]$ArtifactsStagingDirectory,
-	[Parameter(Mandatory=$true)][string]$TemplateParameters
+	[Parameter(Mandatory=$true)][string]$TemplateParameters,
+    [Parameter(Mandatory=$true)][hashtable]$OptionalParameters
 
     )	
 
-
+    $StorageContainerName = "stage"
 	Select-AzureRmSubscription -SubscriptionName $SubscriptionName
-
-	# Convert relative paths to absolute paths if needed
-	$ArtifactStagingDirectory = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, $ArtifactStagingDirectory))
-		
+	
 	# Parse the parameter file and update the values of artifacts location and artifacts location SAS token if they are present
 	$JsonParameters = $TemplateParameters
 	if (($JsonParameters | Get-Member -Type NoteProperty 'parameters') -ne $null) {
 		$JsonParameters = $JsonParameters.parameters
 	}
+    
 	$ArtifactsLocationName = '_artifactsLocation'
 	$ArtifactsLocationSasTokenName = '_artifactsLocationSasToken'
 	$OptionalParameters[$ArtifactsLocationName] = $JsonParameters | Select -Expand $ArtifactsLocationName -ErrorAction Ignore | Select -Expand 'value' -ErrorAction Ignore
 	$OptionalParameters[$ArtifactsLocationSasTokenName] = $JsonParameters | Select -Expand $ArtifactsLocationSasTokenName -ErrorAction Ignore | Select -Expand 'value' -ErrorAction Ignore
 
 	
-	# Create a storage account name if none was provided
-	if ($StorageAccountName -eq '') {
-		$StorageAccountName = $ApplicationName + 'stage' + ((Get-AzureRmContext).Subscription.SubscriptionId).Replace('-', '').substring(0, 19)
-	}
+	$StorageAccountName = $ApplicationName + 'stg' + ((Get-AzureRmContext).Subscription.Id).Replace('-', '').substring(0, 20)
+	$storageAccountName = $storageAccountName.Substring(0, [System.Math]::Min(24, $StorageAccountName.length))
+
 
 	$StorageAccount = (Get-AzureRmStorageAccount | Where-Object{$_.StorageAccountName -eq $StorageAccountName})
 
@@ -641,14 +638,9 @@ Function New-DeployStorageBlob {
 	if ($StorageAccount -eq $null) {
 		$ResourceGroupName = $ResourceGroupName + 'stage'
 		New-AzureRmResourceGroup -Location "$ResourceGroupLocation" -Name $ResourceGroupName -Force
-		$StorageAccount = New-AzureRmStorageAccount -StorageAccountName $StorageAccountName -Type 'Standard_LRS' -ResourceGroupName $ResourceGroupName -Location "$ResourceGroupLocation"
+		$StorageAccount = New-AzureRmStorageAccount -StorageAccountName $StorageAccountName.ToLower() -Type 'Standard_LRS' -ResourceGroupName $ResourceGroupName -Location "$ResourceGroupLocation"
 	}
-
-	# Generate the value for artifacts location if it is not provided in the parameter file
-	if ($OptionalParameters[$ArtifactsLocationName] -eq $null) {
-		$OptionalParameters[$ArtifactsLocationName] = $StorageAccount.Context.BlobEndPoint + $StorageContainerName
-	}
-
+	
 	# Copy files from the local storage staging location to the storage account container
 	New-AzureStorageContainer -Name $StorageContainerName -Context $StorageAccount.Context -ErrorAction SilentlyContinue *>&1
 
@@ -658,15 +650,21 @@ Function New-DeployStorageBlob {
 		Set-AzureStorageBlobContent -File $SourcePath -Blob $SourcePath.Substring($ArtifactStagingDirectory.length + 1) `
 			-Container $StorageContainerName -Context $StorageAccount.Context -Force
 	}
-	
+
+	# Generate the value for artifacts location if it is not provided in the parameter file
+	if ($OptionalParameters[$ArtifactsLocationName] -eq $null) {
+		$OptionalParameters[$ArtifactsLocationName] = $StorageAccount.Context.BlobEndPoint + $StorageContainerName
+       
+	}
 
 	# Generate a 4 hour SAS token for the artifacts location if one was not provided in the parameters file
 	if ($OptionalParameters[$ArtifactsLocationSasTokenName] -eq $null) {
 		$OptionalParameters[$ArtifactsLocationSasTokenName] = ConvertTo-SecureString -AsPlainText -Force `
 			(New-AzureStorageContainerSASToken -Container $StorageContainerName -Context $StorageAccount.Context -Permission r -ExpiryTime (Get-Date).AddHours(4))	
 	}	
-	return $OptionalParameters
+
 }
+
 
 
 #MAIN
@@ -682,10 +680,11 @@ catch {
 }
 
 # Begin execution, execute functions wrapped in error checking
+
 Write-PipelineLog -LogFileDate $startTime -LogName $scriptName -Message "INFO - Starting $scriptName"
 Set-DeployParametersRepository
 $deployProperties = Set-DeployServiceTierVariables
-#Connect-DeployAzure -ServiceTier $deployProperties.serviceTier -SubscriptionName $deployProperties.subscriptionName
+Connect-DeployAzure -ServiceTier $deployProperties.serviceTier -SubscriptionName $deployProperties.subscriptionName
 New-DeployResourceGroup -ApplicationName $deployProperties.applicationName -SubscriptionCode $SubscriptionCode -ResourceGroupName $deployProperties.resourceGroupName -resourceGroupRegion $deployProperties.parameters.resourceGroupRegion -BranchName $BranchName
 Set-DeployResourceGroupRBAC -ServiceTier $deployProperties.serviceTier
 Set-DeployTemplateRepository -ResourceGroupName $deployProperties.resourceGroupName -ServiceTier $deployProperties.serviceTier -SubscriptionName $deployProperties.subscriptionName -TemplateBranch $deployProperties.parameters.templateBranch -TemplateCommit $deployProperties.parameters.templateCommit
@@ -698,13 +697,11 @@ if ($mandatoryParameters.virtual_machine_admin_password -eq $true) {
 # Set storage blob and upload artifacts
 if ($UploadArtifacts) {
 	New-DeployStorageBlobResourceGroup -ApplicationName $deployProperties.applicationName -SubscriptionCode $SubscriptionCode -ResourceGroupName $deployProperties.resourceGroupName -resourceGroupRegion $deployProperties.parameters.resourceGroupRegion -BranchName $BranchName
-	$optionalParameters = New-DeployStorageBlob -ServiceTier $deployProperties.serviceTier -SubscriptionName $deployProperties.subscriptionName -ResourceGroupName $deployProperties.resourceGroupName -ApplicationName $deployProperties.applicationName -ArtifactsStagingDirectory '/' -TemplateParameters $deployProperties.parameters
-	$mandatoryParameters = $mandatoryParameters + $optionalParameters
+	$outParameters = @{}
+	New-DeployStorageBlob -ServiceTier $deployProperties.serviceTier -SubscriptionName $deployProperties.subscriptionName -ResourceGroupName $deployProperties.resourceGroupName -ApplicationName $deployProperties.applicationName -ArtifactsStagingDirectory '/' -TemplateParameters $deployProperties.parameters -OptionalParameters $optionalParameters
+	$mandatoryParameters = $mandatoryParameters + $outParameters
 }
 $deploymentOutputs = New-DeployTemplate -Parameters $deployProperties.parameters -ApplicationName $deployProperties.applicationName -EnvironmentName $deployProperties.environmentName -ResourceGroupName $deployProperties.resourceGroupName -ServiceTier $deployProperties.serviceTier -VirtualMachineAdminPassword $virtualMachineAdminPassword -SubscriptionName $deployProperties.subscriptionName -MandatoryParameters $mandatoryParameters
-
-
-
 
 
 if ( $deploymentOutputs ) {
