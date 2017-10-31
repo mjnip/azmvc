@@ -30,6 +30,7 @@
     </None>
     <None Include="deploy\common.ps1" />
     <None Include="deploy\Deploy-AzureResourceGroup.ps1" />
+    <None Include="deploy\README.md" />
     <None Include="scripts\install.sh" />
     <None Include="scripts\script.ps1" />
     <None Include="templates\vmss-main-autoscale.parameters.json" />
