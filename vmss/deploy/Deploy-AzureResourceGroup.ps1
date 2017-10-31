@@ -4,18 +4,18 @@
 
 Param(
     [string] [Parameter(Mandatory=$true)] $ResourceGroupLocation,
-    [string] $ResourceGroupName = 'td-linux-vmss',
-	[string] $StorageResourceGroupName = 'td-linux-vmss-deploy',
+    [string] [Parameter(Mandatory=$true)] $ResourceGroupName = 'td-linux-vmss',
     [switch] $UploadArtifacts,
-    [string] $StorageAccountName,
-    [string] $StorageContainerName = $DevResourceGroupName.ToLowerInvariant() + '-stageartifacts',
-    [string] $TemplateFile = '../templates/vmss-main.json',
-    [string] $TemplateParametersFile = '../templates/vmss-main.parameters.json',
-    [string] $ArtifactStagingDirectory = '../templates',
-	[string] $ScriptStagingDirectory = '../scripts',
+    [string] $StorageContainerName = $ResourceGroupName.ToLowerInvariant() + '-stageartifacts',
+	[string] $StorageAccountName,
+    [string] [Parameter(Mandatory=$true)] $TemplateFile = '../templates/vmss-main.json',
+    [string] [Parameter(Mandatory=$true)] $TemplateParametersFile = '../templates/vmss-main.parameters.json',
+    [string] [Parameter(Mandatory=$true)] $ArtifactStagingDirectory = '../templates',
+	[string] [Parameter(Mandatory=$true)] $ScriptStagingDirectory = '../scripts',
     [string] $DSCSourceFolder = 'DSC',
     [switch] $ValidateOnly,
-	[switch] $CleanUp
+	[switch] $CleanUp,
+	[switch] $CleanUpDeploymentStorage
 )
 
 try {
@@ -31,13 +31,38 @@ function Format-ValidationOutput {
     return @($ValidationOutput | Where-Object { $_ -ne $null } | ForEach-Object { @('  ' * $Depth + ': ' + $_.Message) + @(Format-ValidationOutput @($_.Details) ($Depth + 1)) })
 }
 
+$StorageResourceGroupName = $ResourceGroupName + 'stage'
 $OptionalParameters = New-Object -TypeName Hashtable
 $TemplateFile = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, $TemplateFile))
 $TemplateParametersFile = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PSScriptRoot, $TemplateParametersFile))
 
 if ($CleanUp)
-{
-	Remove-AzureRmResourceGroup -Name $ResourceGroupName -Force
+{	
+	$present = Find-AzureRmResource -ResourceGroupNameEquals $ResourceGroupName 
+	if($present -eq $null)
+	{
+		$write = 'Resource Group ' + $ResourceGroupName + ' does not exist' 
+		Write-Output '', $write
+	}
+	else
+	{
+		Remove-AzureRmResourceGroup -Name $ResourceGroupName -Force
+		$write = 'Removed resource group: ' + $ResourceGroupName
+		Write-Output '', $write
+	}
+
+	$present = Find-AzureRmResource -ResourceGroupNameEquals $StorageResourceGroupName 
+	if($present -eq $null)
+	{
+		$write = 'Resource Group ' + $StorageResourceGroupName + ' does not exist' 
+		Write-Output '', $write
+	}
+	else
+	{
+		Remove-AzureRmResourceGroup -Name $StorageResourceGroupName -Force
+		$write = 'Removed resource group: ' + $StorageResourceGroupName
+		Write-Output '', $write
+	}	
 }
 else
 {
@@ -137,6 +162,17 @@ else
 										   -ErrorVariable ErrorMessages
 		if ($ErrorMessages) {
 			Write-Output '', 'Template deployment returned the following errors:', @(@($ErrorMessages) | ForEach-Object { $_.Exception.Message.TrimEnd("`r`n") })
+		}
+		else
+		{
+			if($CleanUpDeploymentStorage)
+			{
+				Remove-AzureRmResourceGroup -Name $StorageResourceGroupName -Force
+				$write = 'Removed deployment storage resource group: ' + $StorageResourceGroupName
+				
+				Write-Output '', $write
+				
+			}
 		}
 	}
 

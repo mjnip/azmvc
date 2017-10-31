@@ -130,6 +130,17 @@
         "Premium_LRS"
       ]
     },
+    "vmssUpgradePolicy": {
+      "type": "string",
+      "metadata": {
+        "description": "Automatic update or manual update.  Automatic update can cause downtime as update is immediate.  Manual requires user to invoke vmss updates."
+      },
+      "allowedValues": [
+        "Automatic",
+        "Manual"
+      ],
+      "defaultValue": "Manual"
+    },
     "autoscaleEnabled": {
       "type": "bool",
       "defaultValue": false
@@ -359,7 +370,24 @@
       "typeHandlerVersion": "2.0",
       "type": "CustomScript"
     },
-    "vmssResId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Compute/virtualMachineScaleSets/', variables('namingInfix'), parameters('lbOrNoLb'))]",
+    "vmssNicProperties_lb": {
+      "subnet": {
+        "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', parameters('virtualnetworkNameRGName'), '/providers/Microsoft.Network/virtualNetworks/', parameters('virtualnetworkName'), '/subnets/', parameters('subnetName'))]"
+      },
+      "loadBalancerBackendAddressPools": [
+        {
+          "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('loadBalancerName'), '/backendAddressPools/', variables('bePoolName'))]"
+        }
+      ]
+    },
+    "vmssNicProperties_nolb": {
+      "subnet": {
+        "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', parameters('virtualnetworkNameRGName'), '/providers/Microsoft.Network/virtualNetworks/', parameters('virtualnetworkName'), '/subnets/', parameters('subnetName'))]"
+      }
+    },
+    "vmssDependsOn_lb": "[createArray(concat('Microsoft.Network/loadBalancers/', variables('loadBalancerName')))]",
+    "vmssDependsOn_nolb": "",
+    "vmssResId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Compute/virtualMachineScaleSets/', variables('namingInfix'))]",
     "asDecMetricName_CPU": "Percentage CPU",
     "asDecMetricName_MEM": "\\Memory\\% Committed Bytes In Use",
     "asDecTimeWindow": "[concat('PT', parameters('scaleInByTimeWindow'))]",
@@ -437,9 +465,8 @@
       }
     },
     {
-      "condition": "[equals(parameters('lbOrNolb'),'lb')]",
       "type": "Microsoft.Compute/virtualMachineScaleSets",
-      "name": "[concat(variables('namingInfix'),'lb')]",
+      "name": "[concat(variables('namingInfix'))]",
       "location": "[resourceGroup().location]",
       "apiVersion": "[variables('computeApiVersion')]",
       "dependsOn": [
@@ -453,7 +480,7 @@
       "properties": {
         "overprovision": "false",
         "upgradePolicy": {
-          "mode": "Manual"
+          "mode": "[parameters('vmssUpgradePolicy')]"
         },
         "virtualMachineProfile": {
           "storageProfile": {
@@ -483,16 +510,7 @@
                   "ipConfigurations": [
                     {
                       "name": "[variables('ipConfigName')]",
-                      "properties": {
-                        "subnet": {
-                          "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', parameters('virtualnetworkNameRGName'), '/providers/Microsoft.Network/virtualNetworks/', parameters('virtualnetworkName'), '/subnets/', parameters('subnetName'))]"
-                        },
-                        "loadBalancerBackendAddressPools": [
-                          {
-                            "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Network/loadBalancers/', variables('loadBalancerName'), '/backendAddressPools/', variables('bePoolName'))]"
-                          }
-                        ]
-                      }
+                      "properties": "[variables(concat('vmssNicProperties_', parameters('lbOrNolb')))]"
                     }
                   ]
                 }
@@ -526,98 +544,13 @@
         }
       }
     },
-    {
-      "condition": "[equals(parameters('lbOrNolb'),'nolb')]",
-      "type": "Microsoft.Compute/virtualMachineScaleSets",
-      "name": "[concat(variables('namingInfix'),'nolb')]",
-      "location": "[resourceGroup().location]",
-      "apiVersion": "[variables('computeApiVersion')]",
-      "dependsOn": [
-      ],
-      "sku": {
-        "name": "[parameters('vmSize')]",
-        "tier": "Standard",
-        "capacity": "[parameters('instanceCount')]"
-      },
-      "properties": {
-        "overprovision": "false",
-        "upgradePolicy": {
-          "mode": "Manual"
-        },
-        "virtualMachineProfile": {
-          "storageProfile": {
-            "osDisk": {
-              "createOption": "FromImage",
-              "caching": "ReadOnly",
-              "managedDisk": {
-                "storageAccountType": "[variables('diskType')]"
-              }
-            },
-            "imageReference": {
-              "id": "[parameters('managedImageId')]"
-            }
 
-          },
-          "osProfile": {
-            "computerNamePrefix": "[toLower(parameters('computerNamePrefix'))]",
-            "adminUsername": "[parameters('adminUsername')]",
-            "adminPassword": "[parameters('adminPassword')]"
-          },
-          "networkProfile": {
-            "networkInterfaceConfigurations": [
-              {
-                "name": "[variables('nicName')]",
-                "properties": {
-                  "primary": "true",
-                  "ipConfigurations": [
-                    {
-                      "name": "[variables('ipConfigName')]",
-                      "properties": {
-                        "subnet": {
-                          "id": "[concat('/subscriptions/', subscription().subscriptionId,'/resourceGroups/', parameters('virtualnetworkNameRGName'), '/providers/Microsoft.Network/virtualNetworks/', parameters('virtualnetworkName'), '/subnets/', parameters('subnetName'))]"
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          "extensionProfile": {
-            "extensions": [
-              {
-                //"type": "extensions",
-                "name": "executeScript",
-                "location": "[resourceGroup().location]",
-                "properties": {
-                  "publisher": "[variables(concat('extensionProfile_', parameters('osType'))).publisher]",
-                  "type": "[variables(concat('extensionProfile_', parameters('osType'))).type]",
-                  "typeHandlerVersion": "[variables(concat('extensionProfile_', parameters('osType'))).typeHandlerVersion]",
-                  "autoUpgradeMinorVersion": true,
-                  "settings": {
-                    "fileUris": [
-                      "[concat(parameters('_artifactsLocation'), '/', parameters('scriptFile'), parameters('_artifactsLocationSasToken'))]"
-                    ]
-                  },
-                  "protectedSettings": {
-                    "commandToExecute": "[parameters('scriptCommandToExecute')]"
-                  }
-
-                }
-              }
-            ]
-          }
-        }
-      }
-
-
-    },*/
     {
       "type": "Microsoft.Compute/virtualMachineScaleSets/providers/diagnosticSettings",
-      "name": "[concat(variables('namingInfix'), parameters('lbOrNoLb'), '/', 'Microsoft.Insights/service')]",
+      "name": "[concat(variables('namingInfix'), '/Microsoft.Insights/service')]",
       "apiVersion": "2015-07-01",
       "dependsOn": [
-        "[concat('Microsoft.Compute/virtualMachineScaleSets/', variables('namingInfix'), parameters('lbOrNoLb'))]"
+        "[concat('Microsoft.Compute/virtualMachineScaleSets/', variables('namingInfix'))]"
       ],
       "properties": {
         "workspaceId": "[concat('/subscriptions/', parameters('oms-subid'), '/resourceGroups/', parameters('oms-rg'), '/providers/Microsoft.OperationalInsights/workspaces/', parameters('workspaceName'))]",
@@ -636,12 +569,12 @@
     },
 
     {
-      "name": "[concat('autoscale', variables('namingInfix'), parameters('lbOrNoLb'))]",
+      "name": "[concat('autoscale', variables('namingInfix'))]",
       "type": "Microsoft.Insights/autoscaleSettings",
       "location": "[resourceGroup().location]",
       "apiVersion": "2015-04-01",
       "dependsOn": [
-        "[concat('Microsoft.Compute/virtualMachineScaleSets/', variables('namingInfix'), parameters('lbOrNoLb'))]"
+        "[concat('Microsoft.Compute/virtualMachineScaleSets/', variables('namingInfix'))]"
       ],
       "properties": {
         "profiles": [
@@ -697,7 +630,7 @@
           }
         ],
         "enabled": "[parameters('autoscaleEnabled')]",
-        "name": "[concat('autoscale', variables('namingInfix'), parameters('lbOrNoLb'))]",
+        "name": "[concat('autoscale', variables('namingInfix'))]",
         "targetResourceUri": "[variables('vmssResId')]",
         "targetResourceLocation": "[resourceGroup().location]",
         "notifications": []

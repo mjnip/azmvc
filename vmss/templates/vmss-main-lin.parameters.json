@@ -19,7 +19,7 @@
       "value": "Standard_DS1_v2"
     },
     "lbOrNolb": {
-      "value": "nolb"
+      "value": "lb"
     },
     "lbPort": {
       "value": 443
@@ -62,6 +62,9 @@
     },
     "managedImageId": {
       "value": "/subscriptions/16d2a3ff-8221-4460-88a2-dd7643a77a8f/resourceGroups/k8/providers/Microsoft.Compute/images/linuxcustom"
+    },
+    "vmssUpgradePolicy": {
+      "value": "Automatic"
     }
   }
 }

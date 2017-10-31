@@ -3,13 +3,13 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "vmssName": {
-      "value": "winvmss"
+      "value": "winvmss3"
     },
     "computerNamePrefix": {
-      "value": "wvms"
+      "value": "wvms3"
     },
     "instanceCount": {
-      "value": 2
+      "value": 5
     },
     "diskType": {
       "value": "Standard_LRS"
@@ -61,6 +61,9 @@
     },
     "managedImageId": {
       "value": "/subscriptions/16d2a3ff-8221-4460-88a2-dd7643a77a8f/resourceGroups/wincustomdeploy/providers/Microsoft.Compute/images/winbake2"
+    },
+    "vmssUpgradePolicy": {
+      "value": "Automatic"
     }
   }
 }

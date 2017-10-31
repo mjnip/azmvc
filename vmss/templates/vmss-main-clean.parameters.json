@@ -63,7 +63,9 @@
     "managedImageId": {
       "value": ""
     },
-
+    "vmssUpgradePolicy": {
+      "value": "Automatic"
+    },
     /* everything below is for autoscale and param inputs can be completely removed if autoscale is unnecessary */
     "autoscaleEnabled": {
       "value": false

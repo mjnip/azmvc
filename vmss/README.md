@@ -31,6 +31,7 @@ virtualnetworkNameRGName:	(string, required)  The resource group name that the v
 lbPort:	(string, required)  The front end load balanced port.
 lbBePort:	(string, required)  The back end load balanced port to forward traffic to.
 diskType:	(string, required)  The type of disk.  Must be either Premium_LRS or Standard_LRS.  (Premium_LRS = SSD, Standard_LRS = HDD).
+vmssUpgradePolicy:	(string, optional, default: Manual)  Automatic update or manual update of the VMSS.  Automatic update can cause downtime as update is immediate.  Manual requires user to invoke vmss updates.  AllowedValues Automatic or Manual
 autoscaleEnabled:	(bool, optional, default: false)  Boolean to enable or disable autoscale rules.
 scaleByMetric:	(string, optional, default: CPU)  autoscale rule by CPU or Memory.  Allowed values are CPU or MEM.
 scaleInByTimeWindow:	(string, optional, default: 10M)  Time metric scale in setting.  Allowed values:  1M, 5M, 10M, 20M, 30M, 45M, 1H, 1H15M, 1H30M, 1H40M
